@@ -309,6 +309,27 @@ object hof{
       */
 
 
+    def flatMap[B](f: T => List[B]): List[B] = {
+      type C = List[B]
+      @tailrec
+      def flatMapT(res: List[C], list: List[T]): List[C] = {
+        list.reverse match {
+          case List.::(head, tail) => flatMapT(res.::(f(head)), tail)
+          case List.Nil => res
+        }
+      }
+
+
+      @tailrec
+      def flatten(res: List[B], origin: List[List[B]]): List[B] = {
+        origin.reverse match {
+          case List.::(head, tail) => flatten(head.reverse, tail)
+          case List.Nil => res
+        }
+      }
+      flatten(List.Nil, flatMapT(List.Nil, this))
+    }
+
     /**
       *
       * Написать функцию shoutString котрая будет принимать список String и возвращать список,
