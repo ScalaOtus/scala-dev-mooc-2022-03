@@ -220,6 +220,23 @@ object hof{
         case Option.Some(v) => f(v)
         case Option.None => Option.None
       }
+    
+      def printIfAny(): Unit = this match {
+        case Option.Some(v) => println(v)
+        case Option.None => ()
+      }
+
+      def zip[U](v2: Option[U]): Option[(T, U)] = {
+        for {
+          v1Out <- this
+          v2Out  <- v2
+        } yield (v1Out, v2Out)
+      }
+
+      def filter(f: T => Boolean): Option[T] = this match {
+        case Option.Some(v) => if (f(v)) Option.Some(v) else Option.None
+        case Option.None => Option.None
+      }
    }
 
    object Option{
@@ -260,13 +277,84 @@ object hof{
     */
 
     sealed trait List[+T]{
-     def ::[A >: T](elem: A): List[A] = ???
+     def ::[A >: T](elem: A): List[A] = List.::(elem, this)
+     
+     def mkString[A >: T](sep: String): String = {
+      @tailrec
+      def loop(accum: String, list: List[A]): String = {
+        list match {
+          case List.Nil => accum
+          case List.::(head, tail) => loop(accum + sep + head.toString, tail)
+        }
+      }
+      val list = this match {
+        case List.Nil => this
+        case List.::(_, tail) => tail
+      }
+      val acc = this match {
+        case List.Nil => ""
+        case List.::(head, _) => head.toString
+      }
+      loop(acc, list)
+    }
+
+    def reverse[A >: T]: List[A] = {
+      @tailrec
+      def loop(accum: List[A], list: List[A]): List[A] = {
+        list match {
+          case List.Nil => accum
+          case List.::(head, tail) => loop(head::accum, tail)
+        }
+      }
+      loop(List.Nil, this)
+    }
+
+    def map[A >: T](f: T => A): List[A] = {
+      @tailrec
+      def loop(accum: List[A], list: List[T], f: T => A): List[A] = {
+        list match {
+          case List.Nil => accum
+          case List.::(head, tail) => loop(f(head)::accum, tail, f)
+        }
+      }
+      val acc = List.Nil
+      val list = loop(acc, this, e => e).asInstanceOf[List[T]]
+      loop(acc, list, f)
+    }
+
+    def filter[A >: T](f: A => Boolean): List[A] = {
+      @tailrec
+      def loop(accum: List[A], list: List[A], f: A => Boolean): List[A] = {
+        list match {
+          case List.Nil => accum
+          case List.::(head, tail) if f(head) => loop(head::accum, tail, f)
+          case List.::(head, tail) if !f(head) => loop(accum, tail, f)
+        }
+      }
+      val acc = List.Nil
+      val list = loop(acc, this, _ => true)
+      loop(acc, list, f)
+    }
    }
 
    object List{
      case class ::[A](head: A, tail: List[A]) extends List[A]
      case object Nil extends List[Nothing]
+    
+     def apply[A](elems: A*): List[A] = {
+       @tailrec
+       def loop(accum: List[A], els: A*): List[A] = {
+         val l = els.length
+         if (l == 0) accum
+         else loop(els(l - 1)::accum, els.take(l - 1): _*)
+       }
+       loop(Nil.asInstanceOf[List[A]], elems: _*)
+     }
    }
+  
+   def incList(list: List[Int]): List[Int] = list.map(_ + 1)
+
+   def shoutString(list: List[String]): List[String] = list.map(_ + "!")
 
    /**
      * Метод cons, добавляет элемент в голову списка, для этого метода можно воспользоваться названием `::`
